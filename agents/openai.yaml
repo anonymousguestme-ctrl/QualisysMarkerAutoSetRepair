@@ -1,0 +1,4 @@
+interface:
+  display_name: "Qualisys CAST Gap Repair"
+  short_description: "Audit labels, rigid clusters, and relational gap fills"
+  default_prompt: "Use $qualisys-cast-gap-repair to inspect and repair this Qualisys CAST lower-body QTM trial."
