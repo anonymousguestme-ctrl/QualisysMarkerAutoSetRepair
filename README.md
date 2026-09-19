@@ -26,7 +26,9 @@ QTM 中一个点的位置看起来合理，也可能已经被赋成错误标签�
 - 结合前后帧连续性判断标签，而不是只看单帧距离；
 - 使用同一刚体板上的可靠点执行 relational 补点；
 - 检查左右颜色、CAST 连线、点数和 Visual3D 解算条件；
-- 修改前保存备份，输出到新文件，不直接覆盖原始采集文件。
+- measured 数据优先于 relational、插值或其他合成数据；
+- 只把已有物理 marker 对应到骨性关节点，不为凑齐 28/36 点创造 marker；
+- 修改前保存备份，输出到新文件，绝不覆盖、重命名或删除原始采集文件。
 
 GitHub：<https://github.com/anonymousguestme-ctrl/QualisysMarkerAutoSetRepair>
 
@@ -44,6 +46,26 @@ GitHub：<https://github.com/anonymousguestme-ctrl/QualisysMarkerAutoSetRepair>
 
 > [!IMPORTANT]
 > “每帧有 28 个点”不等于数据正确。28 个点全部存在但标签身份错误，仍然会产生错误连线和错误的节段姿态。
+
+## 原始数据保护
+
+原始采集文件优先于所有修复结果。开始处理前先生成只读清单，记录每个候选原始 trial 的完整路径、文件名、大小、修改时间和 SHA-256；trial 编号以用户确认的采集顺序为准，不能假定编号连续。
+
+- 原始 `.qtm` 只读，所有标记、改线和补点都在副本上完成；
+- 输出使用 `_corrected_measured`、`_relational` 等明确后缀；
+- 清理文件时使用精确白名单，不使用通配符删除整个目录；
+- `.qpr`、PAF 配置/依赖、标定文件和工程目录关系都属于受保护内容，不把它们当成“多余工程文件”删除或重建；
+- 不把 `identity_normalized`、`before_fragments`、`before_relational` 等处理中间版本称为“字节级原始文件”；
+- 恢复缺失文件时先按采集日期和时间排除其他实验的同名 trial，只复制到不存在的目标，并核对源/目标 SHA-256；
+- 清理过程中不清空回收站。
+
+对于 `2026-09-18/CAST - Lower body_esp32-ao-flexsensor4.5` 这次采集，用户确认的原始动态 trial 为 `1、3、4、5、6、7`。这个编号只适用于该次采集，不能套用到其他实验。
+
+> [!CAUTION]
+> “最早的处理副本”不一定是原始采集文件。如果只能找到 `identity_normalized` 等副本，必须明确报告其处理阶段，不能声称它与原文件字节完全一致。
+
+> [!CAUTION]
+> 即使 `.qtm` 仍在，删除 `data.qpr` 或相关 PAF 工程依赖也可能导致工程无法正常加载。除非已经完成字节级备份并得到明确确认，否则不得触碰这些文件。
 
 ## 工作原理
 
