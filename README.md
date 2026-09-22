@@ -2,17 +2,17 @@
 
 # Qualisys CAST Marker Auto Set & Repair
 
-### 用静态试次校准动态标记，自动检查错标、断线和缺点，并通过刚体关系完成补点
+### 用静态试次确认动态 marker 身份，检查 CAST 刚体板和连线，并在授权后安全补点
 
-面向 Qualisys QTM、CAST Lower Body 和 Visual3D 的可复用 Codex Skill 与 QTM REST 工具。
+面向 Qualisys QTM、CAST Lower Body 和 Visual3D 的 Codex Skill 与 QTM REST 工具。
 
-中文
+中文｜[GitHub](https://github.com/anonymousguestme-ctrl/QualisysMarkerAutoSetRepair)
 
 </div>
 
 ---
 
-## 为什么做它
+## ✨ 为什么做它
 
 下肢步态数据的难点往往不是“有没有 28 个点”，而是这些点是否对应了正确的物理标记。
 
@@ -30,9 +30,19 @@ QTM 中一个点的位置看起来合理，也可能已经被赋成错误标签�
 - 只把已有物理 marker 对应到骨性关节点，不为凑齐 28/36 点创造 marker；
 - 修改前保存备份，输出到新文件，绝不覆盖、重命名或删除原始采集文件。
 
-GitHub：<https://github.com/anonymousguestme-ctrl/QualisysMarkerAutoSetRepair>
+它不会替你猜测不存在的 marker，也不会因为点数变成 28 或 36 就宣布数据正确。它把“身份确认”和“缺口修复”分开，先保护原始数据，再输出可审计的 QTM 副本。
 
-## 它能处理什么
+## 🚦 处理状态和决策规则
+
+| 状态 | 优先动作 | 结果 |
+| --- | --- | --- |
+| `Measured` 正确 | 保留原始 measured | 不覆盖，不为平滑而重建 |
+| 点存在但位置/连线错误 | 先查 label、fragment、颜色和 bone | 这是身份问题，不是 gap |
+| marker 身份正确但内部缺失 | 用户明确授权后 relational | 输出 filled/relational provenance |
+| 头尾缺失 | 默认保留或裁剪分析区间 | 不为了 100% 自动外推 |
+| 目标 marker 从未采集 | 停止并报告缺失 | 不创建 marker |
+
+## 🔧 它能处理什么
 
 | 问题 | 判断方式 | 处理方式 |
 | --- | --- | --- |
@@ -47,7 +57,7 @@ GitHub：<https://github.com/anonymousguestme-ctrl/QualisysMarkerAutoSetRepair>
 > [!IMPORTANT]
 > “每帧有 28 个点”不等于数据正确。28 个点全部存在但标签身份错误，仍然会产生错误连线和错误的节段姿态。
 
-## 原始数据保护
+## 🔐 原始数据保护
 
 原始采集文件优先于所有修复结果。开始处理前先生成只读清单，记录每个候选原始 trial 的完整路径、文件名、大小、修改时间和 SHA-256；trial 编号以用户确认的采集顺序为准，不能假定编号连续。
 
@@ -67,7 +77,7 @@ GitHub：<https://github.com/anonymousguestme-ctrl/QualisysMarkerAutoSetRepair>
 > [!CAUTION]
 > 即使 `.qtm` 仍在，删除 `data.qpr` 或相关 PAF 工程依赖也可能导致工程无法正常加载。除非已经完成字节级备份并得到明确确认，否则不得触碰这些文件。
 
-## 工作原理
+## 🧭 工作原理
 
 ```text
 人工确认的静态 CAST 试次
@@ -99,7 +109,7 @@ GitHub：<https://github.com/anonymousguestme-ctrl/QualisysMarkerAutoSetRepair>
 
 距离匹配只用于提出候选身份。对于接近对称的四点板，不同排列可能得到相近的误差，因此最终还必须检查前后帧连续性、trajectory part 边界和 QTM 画面。
 
-## CAST 点位约定
+## 📍 CAST 点位约定
 
 ### 动态 28 个跟踪点
 
@@ -117,7 +127,7 @@ GitHub：<https://github.com/anonymousguestme-ctrl/QualisysMarkerAutoSetRepair>
 
 当前项目约定左侧为青色、右侧为绿色。换项目时应先从人工确认的静态文件读取颜色，不能把该配色当作所有实验室的通用标准。
 
-## 需要准备什么
+## 📦 需要准备什么
 
 | 项目 | 要求 | 用途 |
 | --- | --- | --- |
@@ -133,7 +143,7 @@ QTM REST 接口默认地址：
 http://127.0.0.1:7979/api/scripting/qtm
 ```
 
-## 快速开始
+## ⚡ 快速开始
 
 ### 1. 下载项目
 
@@ -214,7 +224,7 @@ py scripts\qtm_cast_tool.py repair `
 
 工具要求 backup 和 output 都是尚不存在的新路径，避免意外覆盖文件。
 
-## 多点重叠缺失怎么补
+## 🔗 多点重叠缺失怎么补
 
 假设 `R_TH1` 和 `R_TH3` 同时异常，但 `R_TH2` 和 `R_TH4` 可靠：
 
@@ -226,7 +236,7 @@ py scripts\qtm_cast_tool.py repair `
 
 不能直接让两个错误点互相作为参考。每完成一步都应重新审计，再执行下一步。
 
-## 刚体误差怎么判断
+## 📏 刚体误差怎么判断
 
 对四点刚体板计算六条边相对于静态模板的误差：
 
@@ -245,7 +255,7 @@ RMS = sqrt(sum(error_ij^2) / 6)
 
 这些不是所有采集条件下的硬阈值。最终阈值应结合静态数据本身的波动、标记固定情况和相机重建质量。
 
-## Visual3D 前检查
+## ✅ Visual3D 前检查
 
 - 静态试次标签完整且稳定；
 - 动态 28 个 tracking marker 名称与静态一致；
@@ -258,7 +268,7 @@ RMS = sqrt(sum(error_ij^2) / 6)
 > [!NOTE]
 > Visual3D 导入不要求所有轨迹在每一帧都达到 100%。分析区间内的身份正确性和每个节段的有效几何约束，比首尾填满更重要。
 
-## 推荐的决策顺序
+## 🧠 推荐的决策顺序
 
 实际处理时不要从“补点”开始。按照下面的顺序可以避免把错标数据传播到后续节段：
 
@@ -282,7 +292,7 @@ RMS = sqrt(sum(error_ij^2) / 6)
 - QTM 的颜色、bone 拓扑和轨迹几何相互矛盾；
 - 输出只能做到点数完整，但无法证明身份和连线正确。
 
-## Provenance 和验收标准
+## 🧾 Provenance 和验收标准
 
 每个修复结果都应能回答“这个点从哪里来”。建议在输出目录保存一个 manifest，至少包含：
 
@@ -312,7 +322,7 @@ unresolved_ambiguity
 - 重新打开输出 QTM 后，结构审计仍然通过；
 - 任何剩余 gap、边界裁剪和身份歧义都已明确写出。
 
-## 本地使用和仓库边界
+## 🖥️ 本地使用和仓库边界
 
 这个仓库只存放 skill、参考文档和审计/修复脚本，不存放受试者 QTM、C3D、CSV、JSON 或截图。`.gitignore` 会排除常见采集数据扩展名；如果项目中出现新的敏感格式，应先加入忽略规则再执行 `git add`。
 
@@ -324,7 +334,7 @@ C:\Users\Admin\.codex\skills\qualisys-cast-gap-repair\SKILL.md
 
 仓库中的 `SKILL.md` 是同步发布版本。更新流程是：先修改并验证本地 skill，再同步仓库文件、运行脚本检查、审阅 `git diff`，最后提交和推送。不要把某一次实验的路径、trial 编号或受试者数据写成通用规则。
 
-## 数据安全
+## 🛡️ 数据安全
 
 - 默认命令为只读审计；
 - 只有 `repair --execute` 才会修改当前打开的测量；
@@ -337,7 +347,7 @@ C:\Users\Admin\.codex\skills\qualisys-cast-gap-repair\SKILL.md
 > [!CAUTION]
 > QTM relational fill 会覆盖指定范围内的全部 sample，包括原本存在的 measured sample。只有确认该范围属于错误数据后才能执行。
 
-## 项目结构
+## 📁 项目结构
 
 ```text
 SKILL.md                       Codex Skill 入口与强制规则
@@ -350,7 +360,7 @@ scripts/qtm_cast_tool.py       静态模板、只读审计和定点修复工具
 LICENSE                        MIT License
 ```
 
-## 开发检查
+## 🧪 开发检查
 
 ```powershell
 py -m py_compile .\scripts\qtm_cast_tool.py
@@ -359,7 +369,7 @@ py .\scripts\qtm_cast_tool.py --help
 
 Skill 结构可以使用 Codex 自带的 `skill-creator` 校验器检查。
 
-## 故障排查
+## 🛠️ 故障排查
 
 ### 提示 “Open a QTM measurement”
 
@@ -385,7 +395,7 @@ Skill 结构可以使用 Codex 自带的 `skill-creator` 校验器检查。
 
 默认不外推边界。若缺点不在分析窗口内，可在 Visual3D 中裁剪；只有下游确实需要这些帧时才考虑有依据的外推。
 
-## 当前限制
+## ⚠️ 当前限制
 
 - 默认 marker 配置只适用于本仓库记录的 CAST Lower Body；
 - 颜色值是当前项目约定，不是全局 Qualisys 标准；
