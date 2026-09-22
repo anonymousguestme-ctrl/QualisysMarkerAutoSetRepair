@@ -258,6 +258,72 @@ RMS = sqrt(sum(error_ij^2) / 6)
 > [!NOTE]
 > Visual3D 导入不要求所有轨迹在每一帧都达到 100%。分析区间内的身份正确性和每个节段的有效几何约束，比首尾填满更重要。
 
+## 推荐的决策顺序
+
+实际处理时不要从“补点”开始。按照下面的顺序可以避免把错标数据传播到后续节段：
+
+1. **冻结原始数据。** 记录 QTM、C3D、QPR、PAF 和静态文件的路径、大小、修改时间和 SHA-256。确认 QTM 当前文件是否 dirty，并指定用户确认的静态 trial 和动态 trial 顺序。
+2. **先做只读审计。** 统计 label、trajectory part、Measured/filled provenance、逐帧有效点数、内部/边界 gap、左右颜色、bone 数量和 TH/SK 刚体误差。
+3. **先判断身份。** 如果点的位置属于另一块板、左右串了、轨迹在 fragment 边界跳变，先处理 label/fragment/拓扑；这不是 gap，不能直接 relational。
+4. **再判断是否需要补点。** 只有目标物理 marker 已被采集、缺口是内部缺失、参考 marker 可靠且用户明确授权时，才生成 relational repair plan。
+5. **先修参考、后修目标。** 同一刚体板中先修复作为参考的 marker，每一轮后重新计算距离和接缝连续性；不要让两个同时错误的点互相作为参考。
+6. **写入新的 QTM。** backup 和 output 都使用不存在的新路径；输出文件用 `_corrected_measured`、`_relational` 等后缀，不能叫 `original`。
+7. **重新打开验证。** 在 QTM 中检查第一坏帧、最坏帧和第一好帧，确认实际点和连线；再重复结构审计并写入 manifest。
+
+### 什么时候必须停止
+
+以下情况不应继续自动修复，而应报告 `not validated` 或请求用户确认：
+
+- 静态参考试次不是用户确认的同一受试者/同一采集；
+- 四点刚性板存在多个同样合理的 label 排列；
+- 目标 marker 从未被可靠采集，只有模型期望它存在；
+- 参考点自身身份不清楚或整块刚体板缺失；
+- 只能通过覆盖正确的 `Measured` 样本才能完成补点；
+- QTM 的颜色、bone 拓扑和轨迹几何相互矛盾；
+- 输出只能做到点数完整，但无法证明身份和连线正确。
+
+## Provenance 和验收标准
+
+每个修复结果都应能回答“这个点从哪里来”。建议在输出目录保存一个 manifest，至少包含：
+
+```text
+source_qtm_path / source_qtm_sha256
+output_qtm_path / output_qtm_sha256
+static_trial
+ordered_dynamic_trials
+ui_frame_to_api_sample_convention
+changed_labels_and_frame_ranges
+measured_count / relational_count / interpolated_count
+relational_reference_order
+rigid_cluster_rms_before_and_after
+overwritten_measured_samples
+boundary_gaps_and_analysis_crop
+qtm_visual_review_frames
+visual3d_readiness
+unresolved_ambiguity
+```
+
+验收不能只看“文件能打开”或“每帧有 28 个点”。至少要同时满足：
+
+- 正确的 measured 数据没有被无理由覆盖；
+- 所有修改区间有明确的来源和依赖关系；
+- TH/SK 刚体距离在修复区间和两个接缝处没有异常跳变；
+- QTM 中点和线连接的是正确的物理 marker；
+- 重新打开输出 QTM 后，结构审计仍然通过；
+- 任何剩余 gap、边界裁剪和身份歧义都已明确写出。
+
+## 本地使用和仓库边界
+
+这个仓库只存放 skill、参考文档和审计/修复脚本，不存放受试者 QTM、C3D、CSV、JSON 或截图。`.gitignore` 会排除常见采集数据扩展名；如果项目中出现新的敏感格式，应先加入忽略规则再执行 `git add`。
+
+在本地 Codex 中安装后，入口文件应位于：
+
+```text
+C:\Users\Admin\.codex\skills\qualisys-cast-gap-repair\SKILL.md
+```
+
+仓库中的 `SKILL.md` 是同步发布版本。更新流程是：先修改并验证本地 skill，再同步仓库文件、运行脚本检查、审阅 `git diff`，最后提交和推送。不要把某一次实验的路径、trial 编号或受试者数据写成通用规则。
+
 ## 数据安全
 
 - 默认命令为只读审计；
